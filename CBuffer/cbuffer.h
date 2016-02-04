@@ -81,10 +81,18 @@ public:
 			cbuffer tmp(other);
 			std::swap(ptr, tmp.ptr);
 			std::swap(size, tmp.size);
-			//fare una swap per ogni variabile che aggiungerò
+			std::swap(items_amount, tmp.items_amount);
+			std::swap(head, tmp.head);
+			std::swap(tail, tmp.tail);
+			std::swap(pending_items, tmp.pending_items);
+			//(!) fare una swap per ogni variabile che aggiungerò
 		}
 		return *this; // concatenazione assegnamenti
 	}
+
+	/*
+	Operatore Assegnamento Con Casting
+	*/
 
 	/**
 	* Distruttore
@@ -92,6 +100,11 @@ public:
 	*/
 	~cbuffer(void) {
 		delete[] ptr; // Deallocazione del puntatore allocato durante l'istanziazione dell'oggetto.
+		size = 0; 				
+		items_amount = 0;
+		head = 0;
+		tail = 0;
+		pending_items = 0;	
 	}
 
 	/**
@@ -152,6 +165,8 @@ public:
 	* Cancellazione elemento (in testa).
 	* @return bool indica se è stato eliminato un elemento o meno.
 	*/
+
+	//(!) C'è UN PROBLEMA COL DELETE CHE FA ESPLODERE LA MEMORIA
 	bool delete_item() {
 		/* Se c'è almeno un elemento nel buffer sposto la head di uno in avanti,
 		altrimenti non posso eliminare un elemento. */
@@ -192,15 +207,177 @@ public:
 	//cbuffer.begin(); -> iteratore all'elemento più vecchio
 	//cbuffer.fine();  -> iteratore all'elemento più giovane
 
+	class iterator; // forward declaration (per gli iteratori)
+	
+	class iterator {
+
+		friend class cbuffer; //Permette istanziazione ed utilizzo di metodi private della classe cbuffer
+
+		T *ptr; //< puntatore ai dati di cbuffer<T>
+		int _size;
+		int _beg;
+
+				/**
+				Costruttore privato per inizializzare ptr
+				cbuffer<T> può chiamarlo grazie la friend
+				@param p puntatore ai dati di cbuffer<T>
+				*/
+		iterator(T* p) : ptr(p) {
+			//cout << "Costruttore ptr[]" << endl;
+		}
+
+		iterator(T* p, int sz, int beg) : ptr(p), _size(sz), _beg(beg) {
+			//cout << "Costruttore ptr[]" << endl;
+		}
+
+	public:
+
+		// stuffs
+		typedef std::forward_iterator_tag	iterator_category;
+		typedef T							value_type;
+		typedef ptrdiff_t					difference_type;
+		typedef T*							pointer;
+		typedef T&							reference;
+
+		/**
+		Costruttore di default
+		*/
+		iterator() : ptr(0) {}
+
+		/**
+		Copy constructor
+		*/
+		iterator(const iterator &other) : ptr(other.ptr) {}
+
+		/**
+		Operatore di assegnamento
+		*/
+		iterator& operator=(const iterator &other) {
+			ptr = other.ptr;
+			return *this;
+		}
+
+		/**
+		Distruttore
+		*/
+		~iterator() {}
+
+		/**
+		Dereferenziamento
+		@return reference al dato puntato
+		*/
+		T& operator*() const {
+			return *ptr;
+		}
+
+		/**
+		Puntatore
+		@return puntatore al dato
+		*/
+		T* operator->() const {
+			return ptr;
+		}
+
+		/**
+		Confronto iterator/iterator
+		@param other iterator da confrontare
+		@return true se *this punta allo stesso dato di other
+		*/
+		bool operator==(const iterator &other) const {
+			return (ptr == other.ptr);
+		}
+
+		/**
+		Confronto iterator/iterator
+		@param other iterator da confrontare
+		@return true se *this non punta allo stesso dato di other
+		*/
+		bool operator!=(const iterator &other) const {
+			return !(other == *this);
+		}
+
+		/**
+		Confronto iterator/const_iterator
+		@param other const_iterator da confrontare
+		@return true se *this punta allo stesso dato di other
+		
+		bool operator==(const const_iterator &other) const {
+			return (ptr == other.ptr);
+		}*/
+
+		/**
+		Confronto iterator/const_iterator
+		@param other const_iterator da confrontare
+		@return true se *this punta allo stesso dato di other
+		
+		bool operator!=(const const_iterator &other) const {
+			return !(other == *this);
+		}*/
+
+		/**
+		Spostamento (prefisso)
+		@return iteratore nella nuova posizione
+		*/
+		iterator& operator++() {
+			if ((*ptr) >= _beg + _size) {
+				ptr -= _size;
+			} else {
+				++ptr;
+			}
+			return *this;
+		}
+
+		/**
+		Spostamento (postfisso)
+		@return iteratore nella vecchia posizione
+		*/
+		iterator operator++(int) {
+			iterator tmp(ptr);
+			/*cout << "iterator++ :   ptr = " << (int)ptr << endl;
+			cout << "iterator++ :  *ptr = " << *ptr << endl;
+			cout << "iterator++ : _size = " << _size << endl;
+			cout << "iterator++ :  _beg = " << _beg << endl;*/
+			if ((int)ptr >= _beg + _size) {
+				ptr -= _size;
+			} else {
+				++ptr;
+			}			
+			return tmp;
+		}
+
+	}; // fine iterator
+
+	/**
+	 * Richiesta iterator
+	 * @return un iteratore in lettura/scrittura all'inizio della sequenza dati
+	 */
+	iterator begin() {
+		cout << "begin()" << endl;
+		return iterator(ptr + head, (int)size, (int)ptr);
+	}
+
+	/**
+	 * Richiesta iterator
+	 * @return un iteratore in lettura/scrittura alla fine della sequenza dati
+	 */
+	iterator end() {
+		cout << "end()" << endl;
+		return iterator(ptr + tail - 1);
+	}
+
 
 	/*
-	TEMP
-	*/
+	 * TEMP METHODS
+	 * Eliminarli in release!
+	 */
 	size_type get_head() {
 		return head;
 	}
 	size_type get_tail() {
 		return tail;
+	}
+	T * get_ptr() {
+		return ptr;
 	}
 };
 
@@ -232,8 +409,9 @@ template <typename T>
 void debug_print_buffer(cbuffer<T> &cb) {
 	//iteratori
 	debug_print_buffer_header(cb);
+	cout << "Print ptr[]" << endl;
 	for (int i = 0; i < cb.get_pending_items(); i++) {
-		cout << "[" << i << "] : " << cb[i] << endl;
+		cout << "    - [" << i << "] : " << cb.get_ptr()[i] << endl;
 	}
 }
 
