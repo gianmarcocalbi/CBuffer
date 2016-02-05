@@ -1,2 +1,4 @@
 ﻿  main.cpp
+c:\users\gianmarco\documents\visual studio 2015\projects\cbuffer\cbuffer\cbuffer2.h(424): warning C4018: '<': errata corrispondenza tra signed e unsigned
+  c:\users\gianmarco\documents\visual studio 2015\projects\cbuffer\cbuffer\main.cpp(21): note: vedere il riferimento all'istanza '<Sconosciuto>' della funzione <Sconosciuto> di cui è in corso la compilazione
   CBuffer.vcxproj -> C:\Users\Gianmarco\Documents\Visual Studio 2015\Projects\CBuffer\Debug\CBuffer.exe

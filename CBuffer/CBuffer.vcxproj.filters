@@ -18,6 +18,9 @@
     <ClInclude Include="cbuffer.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
+    <ClInclude Include="cbuffer2.h">
+      <Filter>File di intestazione</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">

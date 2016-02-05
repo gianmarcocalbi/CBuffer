@@ -171,7 +171,7 @@ public:
 		/* Se c'è almeno un elemento nel buffer sposto la head di uno in avanti,
 		altrimenti non posso eliminare un elemento. */
 		if (pending_items > 0) {
-			ptr[head] = 0;
+			//ptr[head] = 0; << forse è questo che fa esplodere la memoria
 			head++;
 			pending_items--;
 			return true;
@@ -215,7 +215,7 @@ public:
 
 		T *ptr; //< puntatore ai dati di cbuffer<T>
 		int _size;
-		int _beg;
+		T* _beg;
 
 				/**
 				Costruttore privato per inizializzare ptr
@@ -226,7 +226,7 @@ public:
 			//cout << "Costruttore ptr[]" << endl;
 		}
 
-		iterator(T* p, int sz, int beg) : ptr(p), _size(sz), _beg(beg) {
+		iterator(T* p, int sz, T* beg) : ptr(p), _size(sz), _beg(beg) {
 			//cout << "Costruttore ptr[]" << endl;
 		}
 
@@ -333,15 +333,17 @@ public:
 		*/
 		iterator operator++(int) {
 			iterator tmp(ptr);
-			/*cout << "iterator++ :   ptr = " << (int)ptr << endl;
-			cout << "iterator++ :  *ptr = " << *ptr << endl;
-			cout << "iterator++ : _size = " << _size << endl;
-			cout << "iterator++ :  _beg = " << _beg << endl;*/
-			if ((int)ptr >= _beg + _size) {
+			/*cout << "iterator++ :          ptr = " << (int)ptr << endl;
+			cout << "iterator++ :         *ptr = " << *ptr << endl;
+			cout << "iterator++ :        _size = " << _size << endl;
+			cout << "iterator++ :         _beg = " << (int)_beg << endl;
+			cout << "iterator++ :         *_beg = " << *_beg << endl;
+			cout << "iterator++ : _beg + _size = " << (int)(_beg + _size) << endl;*/
+
+			++ptr;
+			if (ptr >= _beg + _size) {
 				ptr -= _size;
-			} else {
-				++ptr;
-			}			
+			}
 			return tmp;
 		}
 
@@ -353,7 +355,7 @@ public:
 	 */
 	iterator begin() {
 		cout << "begin()" << endl;
-		return iterator(ptr + head, (int)size, (int)ptr);
+		return iterator(ptr + head, (int)size, ptr);
 	}
 
 	/**
