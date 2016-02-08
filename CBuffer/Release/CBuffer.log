@@ -1,7 +1,14 @@
 ﻿  main.cpp
+main.cpp(12): warning C4244: 'argomento': conversione da 'double' a 'int'. Possibile perdita di dati.
+c:\users\gianmarco\documents\visual studio 2015\projects\cbuffer\cbuffer\cbuffer.h(778): warning C4018: '<': errata corrispondenza tra signed e unsigned
+  main.cpp(18): note: vedere il riferimento all'istanza '<Sconosciuto>' della funzione <Sconosciuto> di cui è in corso la compilazione
+c:\users\gianmarco\documents\visual studio 2015\projects\cbuffer\cbuffer\cbuffer.h(794): warning C4018: '<': errata corrispondenza tra signed e unsigned
+  main.cpp(22): note: vedere il riferimento all'istanza '<Sconosciuto>' della funzione <Sconosciuto> di cui è in corso la compilazione
+c:\users\gianmarco\documents\visual studio 2015\projects\cbuffer\cbuffer\cbuffer.h(743): warning C4018: '<': errata corrispondenza tra signed e unsigned
+  main.cpp(23): note: vedere il riferimento all'istanza '<Sconosciuto>' della funzione <Sconosciuto> di cui è in corso la compilazione
   Generazione codice in corso...
-  23 of 24 functions (95.8%) were compiled, the rest were copied from previous compilation.
-    0 functions were new in current compilation
-    0 functions had inline decision re-evaluated but remain unchanged
+  83 of 104 functions (79.8%) were compiled, the rest were copied from previous compilation.
+    81 functions were new in current compilation
+    9 functions had inline decision re-evaluated but remain unchanged
   Generazione codice terminata
   CBuffer.vcxproj -> C:\Users\Gianmarco\Documents\Visual Studio 2015\Projects\CBuffer\Release\CBuffer.exe

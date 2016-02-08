@@ -15,10 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="cbuffer.h">
+    <ClInclude Include="cbuffer_old.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
-    <ClInclude Include="cbuffer2.h">
+    <ClInclude Include="cbuffer.h">
       <Filter>File di intestazione</Filter>
     </ClInclude>
   </ItemGroup>

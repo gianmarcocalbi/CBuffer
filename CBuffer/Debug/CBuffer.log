@@ -1,4 +1,6 @@
 ﻿  main.cpp
-c:\users\gianmarco\documents\visual studio 2015\projects\cbuffer\cbuffer\cbuffer2.h(424): warning C4018: '<': errata corrispondenza tra signed e unsigned
-  c:\users\gianmarco\documents\visual studio 2015\projects\cbuffer\cbuffer\main.cpp(21): note: vedere il riferimento all'istanza '<Sconosciuto>' della funzione <Sconosciuto> di cui è in corso la compilazione
+c:\users\gianmarco\documents\visual studio 2015\projects\cbuffer\cbuffer\cbuffer.h(68): warning C4101: 'e': variabile locale senza riferimenti
+  c:\users\gianmarco\documents\visual studio 2015\projects\cbuffer\cbuffer\cbuffer.h(61): note: durante la compilazione della funzione membro '<Sconosciuto>' della classe <Sconosciuto>
+  c:\users\gianmarco\documents\visual studio 2015\projects\cbuffer\cbuffer\main.cpp(6): note: vedere il riferimento all'istanza '<Sconosciuto>' della funzione <Sconosciuto> di cui è in corso la compilazione
+  c:\users\gianmarco\documents\visual studio 2015\projects\cbuffer\cbuffer\main.cpp(6): note: vedere il riferimento all'istanza '<Sconosciuto>' della classe <Sconosciuto> di cui è in corso la compilazione
   CBuffer.vcxproj -> C:\Users\Gianmarco\Documents\Visual Studio 2015\Projects\CBuffer\Debug\CBuffer.exe

@@ -3,19 +3,27 @@
 #include <iostream>
 #include <assert.h> //definire NDEBUG in release
 #include <algorithm>
+#include <string>
+#include <stdexcept>
 using namespace std;
 
 /*
 TODO STUFFS
+[X] - aggiungere commenti developping
+[X] - Rimuovere assert on release.
+[X] - Supporto ad un cbuffer costante (const-correctness)
+[X] - Memory Check DrMemory
+[X] - Mettere get_ptr() come const! : const *T
+[X] - Aggiungere i commenti inline
+[X] - Doxygen review finale
 
-Metodi:
-- iteratori end() begin()
-[...]
+COMPLETED
 
-- Aggiungere e implementare Eccezioni
-- Rimuovere assert on release
-- Costruttore Secondario
+[V] - iteratori end() begin()
+[V] - Costruttore Secondario.
+[V] - Aggiungere e implementare Eccezioni.
 
+old - sostituire size+1 con "real_size" -> ovvero la vera dimensione del buffer in memoria.
 */
 
 template <typename T>
@@ -25,58 +33,101 @@ public:
 
 private:
 
-	T *ptr;							///< Puntatore all'inizio del buffer in memoria .
-	size_type size; 				///< Dimensione del buffer.
-	unsigned int items_amount = 0; 	///< Numero di elementi inseriti dalla creazione del buffer.
-	size_type head = 0;				///< Indice primo elemento del buffer.
-	size_type tail = 0;				///< Indice all'elemento successivo all'ultimo elemento del buffer.
-	unsigned int pending_items = 0;	///< Elementi in coda nel buffer.
+	T *ptr;						///< Puntatore all'inizio del buffer in memoria.
+	size_type size; 			///< Dimensione del buffer (lato utente, ovvero quanti oggetti ci possono stare massimo).
+	size_type items_amount; 	///< Numero di elementi inseriti dalla creazione del buffer.
+	size_type head;				///< Indice primo elemento del buffer.
+	size_type tail;				///< Indice all'elemento successivo all'ultimo elemento del buffer.
+	size_type pending_items;	///< Elementi in coda nel buffer.
 
 protected:
 
 public:
 	/**
-	* Costruttore di default
+	* Costruttore di default.
 	*/
-	cbuffer(void) : ptr(0), size(0) {
-		//stuffs
+	cbuffer(void) : ptr(0), size(0), items_amount(0), head(0), tail(0), pending_items(0) {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::cbuffer(void)" << endl;
+		#endif // !NDEBUG
+
 	}
 
-	/**
-	* Costruttore Primario
-	* @param size_type sz dimensione in capacità elementi buffer
-	*/
-	explicit cbuffer(size_type sz) : ptr(0), size(sz) {
-		ptr = new T[sz];
-		size = sz;
-	}
 
 	/**
-	* Costruttore Secondario
-	* Inizializza ad un valore di default le celle del Buffer
-	* blabla
+	* Costruttore Primario.
+	* @param size_type sz dimensione in capacità elementi buffer.
 	*/
-	// METODO OBSOLETO
-	// cbuffer(size_type sz, const T &init);
-
-	/**
-	* Copy constructor
-	* @param const cbuffer obj oggetto cbuffer da copiare
-	*/
-	cbuffer(const cbuffer& obj) {
-		ptr = new T[obj.size];
-		for (size_type i = 0; i < obj.size; ++i) {
-			ptr[i] = obj.ptr[i];
+	explicit cbuffer(size_type sz) : ptr(0), size(sz), items_amount(0), head(0), tail(0), pending_items(0) {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::cbuffer(size_type sz)" << endl;
+		#endif // !NDEBUG
+		try {
+			ptr = new T[sz + 1];
+			ptr[0] = 0; ///< Contenuto dell'indirizzo di memoria a cui punta tail.
+		} catch (const bad_alloc& e) {
+			cout << "ERRORE: Impossibile allocare un nuovo cbuffer della dimensione inserita." << endl;
+		} catch (...) {
+			cout << "ERRORE: Un errore si è verificato durante l'allocazione in memoria del cbuffer." << endl;
 		}
-		size = obj.size;
 	}
 
+
 	/**
-	* operatore=
-	* @param const cbuffer other oggetto cbuffer dal quale copiare i dati
-	* @return cbuffer
+	* Costruttore Secondario.
+	* Inizializza ad un valore di default le celle free del Buffer.
+	* @param sz dimensione in capacità elementi buffer.
+	* @param &init valore di inizializzazione per le celle vuote del buffer.
+	*/
+	explicit cbuffer(size_type sz, const T &init) : ptr(0), size(sz), items_amount(0), head(0), tail(0), pending_items(0) {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::cbuffer(size_type sz, const T &init)" << endl;
+		#endif // !NDEBUG
+		try {
+			ptr = new T[sz + 1];
+			ptr[0] = 0; ///< Contenuto dell'indirizzo di memoria a cui punta tail.
+			for (size_type i = 1; i < size; ++i) {
+				ptr[i] = init;
+			}
+		} catch (const bad_alloc& e) {
+			cout << "ERRORE: Impossibile allocare un nuovo cbuffer della dimensione inserita." << endl;
+		} catch (...) {
+			cout << "ERRORE: Un errore si è verificato durante l'allocazione in memoria del cbuffer." << endl;
+		}
+	}
+
+
+	/**
+	* Copy constructor.
+	* Copia solo da cbuffer contenenti items dello stesso tipo.
+	* @param other oggetto cbuffer da copiare.
+	*/
+	cbuffer(const cbuffer& other) {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::cbuffer(const cbuffer& other) /*copy constructor*/" << endl;
+		#endif // !NDEBUG
+		ptr = new T[other.size + 1];
+		for (size_type i = 0; i < other.size + 1; ++i) {
+			ptr[i] = other.ptr[i];
+		}
+		size = other.size;
+		items_amount = other.get_items_amount();
+		head = other.get_head();
+		tail = other.get_tail();
+		pending_items = other.get_pending_items();
+	}
+
+
+	/**
+	* Operatore "=".
+	* Operatore di assegnamento.
+	* @param other Oggetto cbuffer dal quale copiare i dati.
+	* @return cbuffer.
 	*/
 	cbuffer &operator=(const cbuffer& other) {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::&operator=(const cbuffer& other)" << endl;
+		#endif // !NDEBUG
 		if (this != &other) {
 			cbuffer tmp(other);
 			std::swap(ptr, tmp.ptr);
@@ -90,310 +141,629 @@ public:
 		return *this; // concatenazione assegnamenti
 	}
 
-	/*
-	Operatore Assegnamento Con Casting
-	*/
 
 	/**
-	* Distruttore
-	* (tilde "~" fatta con ALT+126)
+	* Operatore "=" templato.
+	* Operatore di assegnamento tra due cbuffer contenenti item di diverso tipo.
+	* cbuffer<T> = cbuffer<Q> con casting.
+	* @param const cbuffer &other.
+	* @return cbuffer.
+	*/
+	template<typename Q>
+	cbuffer &operator=(const cbuffer<Q> &other) {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::&operator=(const cbuffer<Q>& other)" << endl;
+		#endif // !NDEBUG
+		cbuffer<T> tmp(other.get_size());
+
+		for (size_type i = 0; i < other.get_size() + 1; ++i) {
+			tmp.ptr[i] = static_cast<T>(other.get_ptr()[i]);
+		}
+		std::swap(ptr, tmp.ptr);
+		std::swap(size, tmp.size);
+		items_amount = other.get_items_amount();
+		head = other.get_head();
+		tail = other.get_tail();
+		pending_items = other.get_pending_items();
+		return *this; // concatenazione assegnamenti
+	}
+
+
+	/**
+	* Distruttore.
 	*/
 	~cbuffer(void) {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::~cbuffer(void)" << endl;
+		#endif // !NDEBUG
 		delete[] ptr; // Deallocazione del puntatore allocato durante l'istanziazione dell'oggetto.
-		size = 0; 				
+		size = 0;
 		items_amount = 0;
 		head = 0;
 		tail = 0;
-		pending_items = 0;	
+		pending_items = 0;
 	}
 
+
 	/**
-	* Capacità/Get Size
-	* @return size_type size
+	* Get Size.
+	* @return size_type size.
 	*/
-	size_type get_size() {
+	size_type get_size() const {
 		return size;
 	}
 
-	size_type capacity() {
-		return get_size();
-	}
-
 
 	/**
-	* Numero di Elementi inseriti (dall'inizio dei tempi)
+	* Numero di Elementi inseriti (dall'inizio dei tempi).
+	* Contatore che viene incrementato ogni volta che un item viene inserito nel buffer.
+	* Ovvero conta il numero di item passati per il buffer.
 	* @return int items_amount
 	*/
-	int get_items_amount() {
+	size_type get_items_amount() const {
 		return items_amount;
 	}
 
 
 	/**
-	* Numero di Elementi Nel Buffer
-	* @return int elementi all'interno del buffer
+	* Numero di Elementi Nel Buffer.
+	* Numero di elementi che sono ora nel buffer.
+	* @return int elementi all'interno del buffer.
 	*/
-	int get_pending_items() {
+	size_type get_pending_items() const {
 		return pending_items;
 	}
 
 	
 	/**
-	* Inserimento (in coda) di un nuovo elemento
-	* @param T item elemento da aggiungere al buffer
+	* Indice di testa.
+	* Indice che indica in che punto della memoria rispetto a ptr è posizionato l'elemento più vecchio del buffer.
+	* @return size_type
+	*/
+	size_type get_head() const {
+		return head;
+	}
+	
+
+	/**
+	* Indice di "coda".
+	* Indice che indica in che punto della memoria (rispetto a ptr)successivo al punto in cui è posizionato l'elemento più recente del buffer.
+	* @return size_type
+	*/
+	size_type get_tail() const {
+		return tail;
+	}
+	
+
+	/**
+	* Puntatore a ptr (solo lettura).
+	* @return T* ptr
+	*/
+	/*const*/ T * get_ptr() const {
+		return ptr;
+	}
+	
+
+	/**
+	* Aggiunta nuovo elemento.
+	* Inserimento (in coda) di un nuovo elemento nel buffer circolare.
+	* @param T item elemento da aggiungere al buffer.
 	*/
 	void add_item(T item) {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::add_item(T item)" << endl;
+		#endif // !NDEBUG
 		/* Se il buffer è pieno tail punta al primo elemento (ovvero vale 0),
 		quindi viene sovrascritto l'elemento più vecchio e quindi cambia anche
-		la testa del buffer, altrimenti aggiungo un elemento in coda e sposto 
+		la testa del buffer, altrimenti aggiungo un elemento in coda e sposto
 		la tail di uno. */
-		ptr[tail] = item;
-		tail = (tail + 1) % size;
-		
-		// Se buffer pieno sposto la testa
-		if (pending_items == size) {
-			head = (head + 1) % size;
-		} else {
-		// Altrimenti il numero degli elementi in coda aumenta di uno
-			pending_items++;
+		if (size > 0) {
+			ptr[tail] = item;
+			tail = (tail + 1) % (size + 1);
+			ptr[tail] = 0;
+
+			// Se buffer pieno sposto la testa
+			if (pending_items == size) {
+				head = (head + 1) % (size + 1);
+			} else {
+				// Altrimenti il numero degli elementi in coda aumenta di uno
+				pending_items++;
+			}
+			items_amount++; // Aumento il numero di elementi totali mai inseriti nel buffer di uno
 		}
-		items_amount++; // Aumento il numero di elementi totali mai inseriti nel buffer di uno
 	}
 
 
 	/**
 	* Cancellazione elemento (in testa).
+	* Cancellazione dell'elemento più vecchio (se ne esiste uno) contenuto nel buffer circolare.
 	* @return bool indica se è stato eliminato un elemento o meno.
 	*/
-
-	//(!) C'è UN PROBLEMA COL DELETE CHE FA ESPLODERE LA MEMORIA
 	bool delete_item() {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::delete_item()" << endl;
+		#endif // !NDEBUG
 		/* Se c'è almeno un elemento nel buffer sposto la head di uno in avanti,
 		altrimenti non posso eliminare un elemento. */
 		if (pending_items > 0) {
-			//ptr[head] = 0; << forse è questo che fa esplodere la memoria
-			head++;
+			ptr[head] = 0; //(!)Attenzione la memoria può esplodere... forse è questo che fa esplodere la memoria
+			head = (head + 1) % (size + 1);
 			pending_items--;
 			return true;
 		}
-		//(!) Notificare all'utente che non ci sono elementi nel buffer.
-		return false;	
+		cout << "Impossibile eliminare un elemento dal buffer." << endl;
+		return false;
 	}
 
 
 	/**
-	* operatore[] per accedere all'i-esimo elemento del buffer
-	* @param size_type index indice dell'elemento a cui accedere
-	* @return T tipo templato
-	* @throw IndexOutOfBound
+	* Operatore "[]".
+	* Operatore per accedere all'i-esimo elemento del buffer.
+	* @param index indice dell'elemento a cui accedere.
+	* @return T Reference all'i-esimo elemento nel buffer.
+	* @throw out_of_range Lanciata se l'indice è fuori dal buffer.
 	*/
-	//cbuffer[0] -> elemento più vecchio
+	//cbuffer[0] --> elemento più vecchio
 	T &operator[] (size_type index) {
-		assert(index < size);
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::&operator[] (size_type index)" << endl;
+		#endif // !NDEBUG
 		if (index >= pending_items) {
-			//(!) Lanciare eccezione ancora da implementare
-			//throw IndexOutOfBound();
+			throw out_of_range("ERRORE: i e' fuori dal range del buffer.");
+		} else {
+			int tmp = (head + index) % (size + 1);
+			return ptr[tmp];
 		}
-		int tmp = (head + index) % size;
-		return ptr[tmp];
 	}
-
-	
 
 
 	/**
-	* Iterators
+	* Operatore "[]" const.
+	* Operatore (che ammette solo lettura) per accedere all'i-esimo elemento del buffer.
+	* @param index Indice dell'elemento a cui accedere.
+	* @return T Reference in sola lettura all'i-esimo elemento nel buffer.
+	* @throw out_of_range Lanciata se l'indice è fuori dal buffer.
 	*/
-	//cbuffer.begin(); -> iteratore all'elemento più vecchio
-	//cbuffer.fine();  -> iteratore all'elemento più giovane
-
-	class iterator; // forward declaration (per gli iteratori)
-	
-	class iterator {
-
-		friend class cbuffer; //Permette istanziazione ed utilizzo di metodi private della classe cbuffer
-
-		T *ptr; //< puntatore ai dati di cbuffer<T>
-		int _size;
-		T* _beg;
-
-				/**
-				Costruttore privato per inizializzare ptr
-				cbuffer<T> può chiamarlo grazie la friend
-				@param p puntatore ai dati di cbuffer<T>
-				*/
-		iterator(T* p) : ptr(p) {
-			//cout << "Costruttore ptr[]" << endl;
+	const T &operator[] (size_type index) const {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::&operator[] (size_type index)" << endl;
+		#endif // !NDEBUG
+		if (index >= pending_items) {
+			throw out_of_range("ERRORE: i e' fuori dal range del buffer.");
+		} else {
+			int tmp = (head + index) % (size + 1);
+			return ptr[tmp];
 		}
+	}
 
-		iterator(T* p, int sz, T* beg) : ptr(p), _size(sz), _beg(beg) {
-			//cout << "Costruttore ptr[]" << endl;
+	//(!)dopo alcuni test ho appurato che il confronto tra cbuffer templati diversamente non aveva alcun senso
+
+	/**
+	* Operatore "==".
+	* Operatore di confronto di uguaglianza tra due cbuffer contenenenti elementi dello stesso tipo.
+	* @param &other cbuffer col quale effettuare il confronto.
+	* @return bool true se i due cbuffer sono uguali, false altrimenti
+	*/
+	bool operator==(cbuffer &other) const {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::operator==(cbuffer &other)" << endl;
+		#endif // !NDEBUG
+		bool b = (size == other.get_size()) &&
+			(items_amount == other.get_items_amount()) &&
+			(head == other.get_head()) &&
+			(tail == other.get_tail()) &&
+			(pending_items == other.get_pending_items()) &&
+			(ptr == other.get_ptr());
+		return b;
+	}
+
+
+	/**
+	* Operatore "!=".
+	* Operatore di confronto di disuguaglianza tra due cbuffer contenenenti elementi dello stesso tipo.
+	* @param &other cbuffer col quale effettuare il confronto.
+	* @return bool true se i due cbuffer sono differenti, false altrimenti
+	*/
+	bool operator!=(cbuffer &other) const {
+		#ifndef NDEBUG
+		cout << "# cbuffer<T>::operator!=(cbuffer &other)" << endl;
+		#endif // !NDEBUG
+		bool b = (size == other.get_size()) &&
+			(items_amount == other.get_items_amount()) &&
+			(head == other.get_head()) &&
+			(tail == other.get_tail()) &&
+			(pending_items == other.get_pending_items()) &&
+			(ptr == other.get_ptr());
+		return !b;
+	}
+
+
+	/**
+	* Iteratori
+	*/
+	class const_iterator;	//iteratore costante
+	class iterator;			//iteratore non costante
+
+	class iterator {
+	private:
+		friend class cbuffer<T>;		//Permette a iterator di accedere ai dati/metodi privati di cbuffer.
+		friend class const_iterator;	//Permette a iterator di accedere ai dati/metodi privati di const_iterator.
+
+		T *ptr;				///< Puntatore iteratore ai dati di cbuffer.
+		size_type cb_size;	///< Size cbuffer.
+		T* cb_begin;		///< Puntatore all'inizio del ptr del cbuffer in memoria.
+
+
+		/**
+		* Costruttore privato.
+		* @param p Puntatore ai dati di cbuffer<T>.
+		*/
+		iterator(T* p) : ptr(p) {}
+
+
+		/**
+		* Costruttore privato.
+		* Costruttore privato per inizializzare ptr, cb_size, cb_begin.
+		* cbuffer<T> può chiamarlo grazie la friendship stabilita con la classe cbuffer.
+		* @param p Puntatore ai dati di cbuffer<T>.
+		* @param sz Dimensione del buffer sul quale effettuare l'iterazione.
+		* @param beg Puntatore all'inizio del buffer in memoria.
+		*/
+		iterator(T* p, size_type sz, T* beg) : ptr(p), cb_size(sz), cb_begin(beg) {
+			#ifndef NDEBUG
+			cout << "Costruttore iteratore : iterator(T* p, size_type sz, T* beg)" << endl;
+			#endif
 		}
 
 	public:
-
-		// stuffs
-		typedef std::forward_iterator_tag	iterator_category;
-		typedef T							value_type;
-		typedef ptrdiff_t					difference_type;
-		typedef T*							pointer;
-		typedef T&							reference;
-
+		
 		/**
-		Costruttore di default
+		* Costruttore di default obbligatorio.
 		*/
-		iterator() : ptr(0) {}
+		iterator() : ptr(0), cb_size(0), cb_begin(0) {}
 
 		/**
-		Copy constructor
+		* Copy constructor.
+		* @param &other.
 		*/
-		iterator(const iterator &other) : ptr(other.ptr) {}
+		iterator(const iterator &other) : ptr(other.ptr), cb_size(other.cb_size), cb_begin(other.cb_begin) {}
 
 		/**
-		Operatore di assegnamento
+		* Operatore di assegnamento.
+		* @param &other.
+		* @return &iterator.
 		*/
 		iterator& operator=(const iterator &other) {
 			ptr = other.ptr;
+			cb_size = other.cb_size;
+			cb_begin = other.cb_begin;
 			return *this;
 		}
 
 		/**
-		Distruttore
+		* Distruttore.
 		*/
 		~iterator() {}
 
 		/**
-		Dereferenziamento
-		@return reference al dato puntato
+		* Dereferenziamento dell'iteratore.
+		* @return T& Reference al dato puntato.
 		*/
 		T& operator*() const {
 			return *ptr;
 		}
 
 		/**
-		Puntatore
-		@return puntatore al dato
+		* Puntatore all'iteratore.
+		* @return T* Puntatore al dato.
 		*/
 		T* operator->() const {
 			return ptr;
 		}
 
 		/**
-		Confronto iterator/iterator
-		@param other iterator da confrontare
-		@return true se *this punta allo stesso dato di other
+		* Operatore "==" iterator/iterator.
+		* Confronto di uguaglianza tra due iterator.
+		* @param &other iterator col quale effettuare il confronto.
+		* @return bool true se *this punta allo stesso dato di other.
 		*/
 		bool operator==(const iterator &other) const {
 			return (ptr == other.ptr);
 		}
 
 		/**
-		Confronto iterator/iterator
-		@param other iterator da confrontare
-		@return true se *this non punta allo stesso dato di other
+		* Operatore "!=" iterator/iterator.
+		* Confronto di disuguaglianza tra due iterator.
+		* @param &other iterator col quale effettuare il confronto.
+		* @return true se *this non punta allo stesso dato di other.
+		*/
+		bool operator!=(const iterator &other) const {
+			return !(other == *this);
+		}
+
+		//confronto con const_iterator da confrontare
+
+		/**
+		* Operatore "==" iterator/const_iterator.
+		* Confronto di uguaglianza tra un iterator e un const_iterator.
+		* @param &other const_iterator col quale effettuare il confronto.
+		* @return bool true se *this punta allo stesso dato di other.
+		*/
+		bool operator==(const const_iterator &other) const {
+			return (ptr == other.ptr);
+		}
+
+		/**
+		* Operatore "!=" iterator/const_iterator.
+		* Confronto di disuguaglianza tra un iterator e un const_iterator.
+		* @param &other const_iterator col quale effettuare il confronto.
+		* @return true se *this non punta allo stesso dato di other.
+		*/
+		bool operator!=(const const_iterator &other) const {
+			return !(other == *this);
+		}
+
+		/**
+		* Operatore "++"
+		* Spostamento (prefisso).
+		* @return iterator& iterator nella nuova posizione.
+		*/
+		iterator& operator++() {
+			++ptr;
+			if (ptr >= cb_begin + cb_size + 1) {
+				ptr -= cb_size + 1;
+			}
+			return *this;
+		}
+
+		/**
+		* Operatore "++(int)"
+		* Spostamento (postfisso).
+		* @return iterator& iterator nella vecchia posizione.
+		*/
+		iterator operator++(int) {
+			iterator tmp(ptr);
+			#ifndef NDEBUG
+			/*cout << "iterator++ :          ptr = " << (int)ptr << endl;
+			//cout << "iterator++ :         *ptr = " << *ptr << endl;
+			cout << "iterator++ :        _size = " << _size << endl;
+			cout << "iterator++ :         _beg = " << (int)_beg << endl;
+			//cout << "iterator++ :        *_beg = " << *_beg << endl;
+			cout << "iterator++ : _beg + _size = " << (int)(_beg + _size) << endl;*/
+			#endif
+
+			++ptr;
+			if (ptr >= cb_begin + cb_size + 1) {
+				ptr -= cb_size + 1;
+			}
+			return tmp;
+		}
+
+	};
+
+	class const_iterator {
+
+		friend class cbuffer<T>;	//Permette a iterator di accedere ai dati/metodi privati di cbuffer.
+		friend class iterator;		//Permette a iterator di accedere ai dati/metodi privati di const_iterator.
+
+		const T *ptr;		///< Puntatore const ai dati di cbuffer<T>
+		size_type cb_size;	///< Size cbuffer.
+		T* cb_begin;		///< Puntatore all'inizio del ptr del cbuffer in memoria.
+
+
+		/**
+		* Costruttore privato.
+		* @param p Puntatore ai dati di cbuffer<T>.
+		*/
+		const_iterator(const T* p) : ptr(p) {}
+
+		/**
+		* Costruttore privato.
+		* Costruttore privato per inizializzare ptr, cb_size, cb_begin.
+		* cbuffer<T> può chiamarlo grazie la friendship stabilita con la classe cbuffer.
+		* @param p Puntatore const ai dati di cbuffer<T>.
+		* @param sz Dimensione del buffer sul quale effettuare l'iterazione.
+		* @param beg Puntatore all'inizio del buffer in memoria.
+		*/
+		const_iterator(const T* p, size_type sz, T* beg) : ptr(p), cb_size(sz), cb_begin(beg) {
+			#ifndef NDEBUG
+			cout << "Costruttore iteratore : iterator(T* p, size_type sz, T* beg)" << endl;
+			#endif
+		}
+
+	public:
+
+		/**
+		* Costruttore di default.
+		*/
+		const_iterator() : ptr(0), cb_size(0), cb_begin(0) {}
+
+		/**
+		* Copy constructor.
+		* @param &other.
+		*/
+		const_iterator(const const_iterator &other) : ptr(other.ptr), cb_size(other.cb_size), cb_begin(other.cb_begin) {}
+
+		/**
+		* Operatore di assegnamento.
+		* @param &other.
+		* @return &const_iterator.
+		*/
+		const_iterator & operator=(const const_iterator &other) {
+			ptr = other.ptr;
+			cb_size = other.cb_size;
+			cb_begin = other.cb_begin;
+			return *this;
+		}
+
+		/**
+		* Distruttore.
+		*/
+		~const_iterator() {}
+
+		/**
+		* Dereferenziamento dell'iteratore.
+		* @return T& Reference al dato puntato.
+		*/
+		const T& operator*() const {
+			return *ptr;
+		}
+
+		/**
+		* Puntatore all'iteratore.
+		* @return T* Puntatore al dato.
+		*/
+		const T* operator->() const {
+			return ptr;
+		}
+
+		/**
+		* Operatore "==" const_iterator/const_iterator.
+		* Confronto di uguaglianza tra due const_iterator.
+		* @param &other const_iterator col quale effettuare il confronto.
+		* @return bool true se *this punta allo stesso dato di other.
+		*/
+		bool operator==(const const_iterator &other) const {
+			return (ptr == other.ptr);
+		}
+
+		/**
+		* Operatore "!=" const_iterator/const_iterator.
+		* Confronto di disuguaglianza tra due const_iterator.
+		* @param &other const_iterator col quale effettuare il confronto
+		* @return true se *this non punta allo stesso dato di other
+		*/
+		bool operator!=(const const_iterator &other) const {
+			return !(other == *this);
+		}
+
+		/**
+		* Operatore "==" const_iterator/iterator.
+		* Confronto di uguaglianza tra un const_iterator e un iterator.
+		* @param &other iterator col quale effettuare il confronto.
+		* @return bool true se *this punta allo stesso dato di other.
+		*/
+		bool operator==(const iterator &other) const {
+			return (ptr == other.ptr);
+		}
+
+		/**
+		* Operatore "!=" const_iterator/iterator.
+		* Confronto di disuguaglianza tra un const_iterator e un iterator.
+		* @param &other iterator col quale effettuare il confronto.
+		* @return true se *this non punta allo stesso dato di other.
 		*/
 		bool operator!=(const iterator &other) const {
 			return !(other == *this);
 		}
 
 		/**
-		Confronto iterator/const_iterator
-		@param other const_iterator da confrontare
-		@return true se *this punta allo stesso dato di other
-		
-		bool operator==(const const_iterator &other) const {
-			return (ptr == other.ptr);
-		}*/
-
-		/**
-		Confronto iterator/const_iterator
-		@param other const_iterator da confrontare
-		@return true se *this punta allo stesso dato di other
-		
-		bool operator!=(const const_iterator &other) const {
-			return !(other == *this);
-		}*/
-
-		/**
-		Spostamento (prefisso)
-		@return iteratore nella nuova posizione
+		* Operatore "++"
+		* Spostamento (prefisso).
+		* @return const_iterator& const_iterator nella nuova posizione.
 		*/
-		iterator& operator++() {
-			if ((*ptr) >= _beg + _size) {
-				ptr -= _size;
-			} else {
-				++ptr;
+		const_iterator & operator++() {
+			++ptr;
+			if (ptr >= cb_begin + cb_size + 1) {
+				ptr -= cb_size + 1;
 			}
 			return *this;
 		}
 
 		/**
-		Spostamento (postfisso)
-		@return iteratore nella vecchia posizione
+		* Operatore "++(int)"
+		* Spostamento (postfisso).
+		* @return const_iterator& const_iterator nella vecchia posizione.
 		*/
-		iterator operator++(int) {
-			iterator tmp(ptr);
-			/*cout << "iterator++ :          ptr = " << (int)ptr << endl;
-			cout << "iterator++ :         *ptr = " << *ptr << endl;
-			cout << "iterator++ :        _size = " << _size << endl;
-			cout << "iterator++ :         _beg = " << (int)_beg << endl;
-			cout << "iterator++ :         *_beg = " << *_beg << endl;
-			cout << "iterator++ : _beg + _size = " << (int)(_beg + _size) << endl;*/
-
+		const_iterator operator++(int) {
+			const_iterator tmp(ptr);
 			++ptr;
-			if (ptr >= _beg + _size) {
-				ptr -= _size;
+			if (ptr >= cb_begin + cb_size + 1) {
+				ptr -= cb_size + 1;
 			}
 			return tmp;
 		}
 
-	}; // fine iterator
+	};
 
-	/**
-	 * Richiesta iterator
-	 * @return un iteratore in lettura/scrittura all'inizio della sequenza dati
-	 */
+	   /**
+	   * Richiesta iterator di inizio.
+	   * @return iterator Iteratore in lettura e scrittura all'elemento più vecchio del buffer circolare.
+	   */
 	iterator begin() {
-		cout << "begin()" << endl;
-		return iterator(ptr + head, (int)size, ptr);
+		#ifndef NDEBUG
+		cout << "# richiesta iteratore begin()" << endl;
+		#endif
+		return iterator(ptr + head, size, ptr);
 	}
 
 	/**
-	 * Richiesta iterator
-	 * @return un iteratore in lettura/scrittura alla fine della sequenza dati
-	 */
+	* Richiesta iterator di fine.
+	* @return iterator Iteratore in lettura e scrittura all'elemento successivo all'ultimo elemento del buffer circolare.
+	*/
 	iterator end() {
-		cout << "end()" << endl;
-		return iterator(ptr + tail - 1);
+		#ifndef NDEBUG
+		cout << "# richiesta iteratore end()" << endl;
+		#endif
+		return iterator(ptr + tail);
 	}
 
+	/**
+	* Richiesta iterator di inizio.
+	* @return iterator Iteratore const all'elemento più vecchio del buffer circolare.
+	*/
+	const_iterator begin() const {
+		#ifndef NDEBUG
+		cout << "# richiesta iteratore begin()" << endl;
+		#endif
+		return const_iterator(ptr + head, size, ptr);
+	}
 
-	/*
-	 * TEMP METHODS
-	 * Eliminarli in release!
-	 */
-	size_type get_head() {
-		return head;
-	}
-	size_type get_tail() {
-		return tail;
-	}
-	T * get_ptr() {
-		return ptr;
+	/**
+	* Richiesta const_iterator di fine
+	* @return iterator Iteratore const all'elemento successivo all'ultimo elemento del buffer circolare.
+	*/
+	const_iterator end() const {
+		#ifndef NDEBUG
+		cout << "# richiesta iteratore end()" << endl;
+		#endif
+		return const_iterator(ptr + tail);
 	}
 };
 
 /**
-* Funzione Globale check
-* @param cbuffer cb
-* @param P predicato unario
-*
+* Funzione Globale check.
+* Viene applicato il predicato booleano p ad ogni elemento del buffer e il risultato viene stampato in output.
 * Funzionamento: per ogni elemento cb[i] nel buffer stampa a console:
 * - "[i]: true"  quando P(cb[i]) è vero.
 * - "[i]: false" quando P(cb[i]) è falso.
+* @param cb Buffer circolare sul quale testare p.
+* @param p Predicato booleano unario.
 */
 template <typename F, typename T>
-void check(cbuffer<T> cb, F p);
+void check(cbuffer<T> &cb, F p) {
+	#ifndef NDEBUG
+	cout << "# check(cbuffer<T> cb, F p) begin" << endl;
+	#endif // !NDEBUG
+
+	try {
+		string s = "false";
+		for (int i = 0; i < cb.get_pending_items(); ++i) {
+			if (p(cb[i])) {
+				s = "true";
+			} else {
+				s = "false";
+			}
+			cout << "[" << i << "]: " << s << endl;
+		}
+	} catch (exception& e) {
+		cout << "Exception check()" << endl;
+	}
+
+	#ifndef NDEBUG
+	cout << "# check(cbuffer<T> cb, F p) end" << endl;
+	#endif // !NDEBUG
+}
 
 
 /***********************************************
@@ -408,20 +778,32 @@ void debug_print_buffer_header(cbuffer<T> &cb) {
 }
 
 template <typename T>
+void debug_print_memo_buffer(cbuffer<T> &cb) {
+	//iteratori
+	debug_print_buffer_header(cb);
+	cout << "Print ptr[] (Rappresentazione Memoria)" << endl;
+	cout << "--------------------------------------" << endl;
+	for (int i = 0; i < cb.get_size() + 1; i++) {
+		if (i == cb.get_tail())
+			cout << "    | [" << i << "] | 'NULL(" << cb.get_ptr()[i] << ")' |" << endl;
+		else
+			cout << "    | [" << i << "] | '" << cb.get_ptr()[i] << "' |" << endl;
+	}
+	cout << "--------------------------------------" << endl;
+
+}
+
+template <typename T>
 void debug_print_buffer(cbuffer<T> &cb) {
 	//iteratori
 	debug_print_buffer_header(cb);
-	cout << "Print ptr[]" << endl;
+	cout << "Print cbuffer[]" << endl;
+	cout << "--------------------------------------" << endl;
 	for (int i = 0; i < cb.get_pending_items(); i++) {
-		cout << "    - [" << i << "] : " << cb.get_ptr()[i] << endl;
+		cout << "    | [" << i << "] | '" << cb[i] << "' |" << endl;
 	}
+	cout << "--------------------------------------" << endl;
+
 }
 
 #endif
-
-
-
-
-
-
-

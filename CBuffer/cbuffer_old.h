@@ -11,10 +11,10 @@ TODO STUFFS
 Metodi:
 - iteratori end() begin()
 [...]
-- sostituire size+1 con "real_size" -> ovvero la vera dimensione del buffer in memoria.
-- Aggiungere e implementare Eccezioni.
-- Rimuovere assert on release.
-- Costruttore Secondario.
+
+- Aggiungere e implementare Eccezioni
+- Rimuovere assert on release
+- Costruttore Secondario
 
 */
 
@@ -27,10 +27,10 @@ private:
 
 	T *ptr;							///< Puntatore all'inizio del buffer in memoria .
 	size_type size; 				///< Dimensione del buffer.
-	size_type items_amount = 0; 	///< Numero di elementi inseriti dalla creazione del buffer.
+	unsigned int items_amount = 0; 	///< Numero di elementi inseriti dalla creazione del buffer.
 	size_type head = 0;				///< Indice primo elemento del buffer.
 	size_type tail = 0;				///< Indice all'elemento successivo all'ultimo elemento del buffer.
-	size_type pending_items = 0;	///< Elementi in coda nel buffer.
+	unsigned int pending_items = 0;	///< Elementi in coda nel buffer.
 
 protected:
 
@@ -47,8 +47,7 @@ public:
 	* @param size_type sz dimensione in capacità elementi buffer
 	*/
 	explicit cbuffer(size_type sz) : ptr(0), size(sz) {
-		ptr = new T[sz+1];
-		ptr[0] = NULL; ///< Contenuto dell'inidirizzo di memoria a cui punta tail.
+		ptr = new T[sz];
 		size = sz;
 	}
 
@@ -65,8 +64,8 @@ public:
 	* @param const cbuffer obj oggetto cbuffer da copiare
 	*/
 	cbuffer(const cbuffer& obj) {
-		ptr = new T[obj.size+1];
-		for (size_type i = 0; i < obj.size+1; ++i) {
+		ptr = new T[obj.size];
+		for (size_type i = 0; i < obj.size; ++i) {
 			ptr[i] = obj.ptr[i];
 		}
 		size = obj.size;
@@ -92,7 +91,7 @@ public:
 	}
 
 	/*
-	(!)Operatore= Assegnamento Con Casting
+	Operatore Assegnamento Con Casting
 	*/
 
 	/**
@@ -101,11 +100,11 @@ public:
 	*/
 	~cbuffer(void) {
 		delete[] ptr; // Deallocazione del puntatore allocato durante l'istanziazione dell'oggetto.
-		size = 0;
+		size = 0; 				
 		items_amount = 0;
 		head = 0;
 		tail = 0;
-		pending_items = 0;
+		pending_items = 0;	
 	}
 
 	/**
@@ -125,7 +124,7 @@ public:
 	* Numero di Elementi inseriti (dall'inizio dei tempi)
 	* @return int items_amount
 	*/
-	size_type get_items_amount() {
+	int get_items_amount() {
 		return items_amount;
 	}
 
@@ -134,11 +133,11 @@ public:
 	* Numero di Elementi Nel Buffer
 	* @return int elementi all'interno del buffer
 	*/
-	size_type get_pending_items() {
+	int get_pending_items() {
 		return pending_items;
 	}
 
-
+	
 	/**
 	* Inserimento (in coda) di un nuovo elemento
 	* @param T item elemento da aggiungere al buffer
@@ -146,17 +145,16 @@ public:
 	void add_item(T item) {
 		/* Se il buffer è pieno tail punta al primo elemento (ovvero vale 0),
 		quindi viene sovrascritto l'elemento più vecchio e quindi cambia anche
-		la testa del buffer, altrimenti aggiungo un elemento in coda e sposto
+		la testa del buffer, altrimenti aggiungo un elemento in coda e sposto 
 		la tail di uno. */
 		ptr[tail] = item;
-		tail = (tail + 1) % (size + 1);
-		ptr[tail] = NULL;
-
+		tail = (tail + 1) % size;
+		
 		// Se buffer pieno sposto la testa
 		if (pending_items == size) {
-			head = (head + 1) % (size + 1);
+			head = (head + 1) % size;
 		} else {
-			// Altrimenti il numero degli elementi in coda aumenta di uno
+		// Altrimenti il numero degli elementi in coda aumenta di uno
 			pending_items++;
 		}
 		items_amount++; // Aumento il numero di elementi totali mai inseriti nel buffer di uno
@@ -174,12 +172,12 @@ public:
 		altrimenti non posso eliminare un elemento. */
 		if (pending_items > 0) {
 			//ptr[head] = 0; << forse è questo che fa esplodere la memoria
-			head = (head + 1) % (size + 1);
+			head++;
 			pending_items--;
 			return true;
 		}
 		//(!) Notificare all'utente che non ci sono elementi nel buffer.
-		return false;
+		return false;	
 	}
 
 
@@ -196,11 +194,11 @@ public:
 			//(!) Lanciare eccezione ancora da implementare
 			//throw IndexOutOfBound();
 		}
-		int tmp = (head + index) % (size + 1);
+		int tmp = (head + index) % size;
 		return ptr[tmp];
 	}
 
-
+	
 
 
 	/**
@@ -210,25 +208,25 @@ public:
 	//cbuffer.fine();  -> iteratore all'elemento più giovane
 
 	class iterator; // forward declaration (per gli iteratori)
-
+	
 	class iterator {
 
 		friend class cbuffer; //Permette istanziazione ed utilizzo di metodi private della classe cbuffer
 
-		T *ptr;				///< Puntatore iteratore ai dati di cbuffer.
-		size_type _size;	///< Size cbuffer.
-		T* _beg;			///< Puntatore all'inizio del ptr del cbuffer in memoria.
+		T *ptr; //< puntatore ai dati di cbuffer<T>
+		int _size;
+		T* _beg;
 
-		/**
-		Costruttore privato per inizializzare ptr
-		cbuffer<T> può chiamarlo grazie la friend
-		@param p puntatore ai dati di cbuffer<T>
-		*/
+				/**
+				Costruttore privato per inizializzare ptr
+				cbuffer<T> può chiamarlo grazie la friend
+				@param p puntatore ai dati di cbuffer<T>
+				*/
 		iterator(T* p) : ptr(p) {
 			//cout << "Costruttore ptr[]" << endl;
 		}
 
-		iterator(T* p, size_type sz, T* beg) : ptr(p), _size(sz), _beg(beg) {
+		iterator(T* p, int sz, T* beg) : ptr(p), _size(sz), _beg(beg) {
 			//cout << "Costruttore ptr[]" << endl;
 		}
 
@@ -302,18 +300,18 @@ public:
 		Confronto iterator/const_iterator
 		@param other const_iterator da confrontare
 		@return true se *this punta allo stesso dato di other
-
+		
 		bool operator==(const const_iterator &other) const {
-		return (ptr == other.ptr);
+			return (ptr == other.ptr);
 		}*/
 
 		/**
 		Confronto iterator/const_iterator
 		@param other const_iterator da confrontare
 		@return true se *this punta allo stesso dato di other
-
+		
 		bool operator!=(const const_iterator &other) const {
-		return !(other == *this);
+			return !(other == *this);
 		}*/
 
 		/**
@@ -335,51 +333,45 @@ public:
 		*/
 		iterator operator++(int) {
 			iterator tmp(ptr);
-			#ifndef NDEBUG
-				/*cout << "iterator++ :          ptr = " << (int)ptr << endl;
-				//cout << "iterator++ :         *ptr = " << *ptr << endl;
-				cout << "iterator++ :        _size = " << _size << endl;
-				cout << "iterator++ :         _beg = " << (int)_beg << endl;
-				//cout << "iterator++ :        *_beg = " << *_beg << endl;
-				cout << "iterator++ : _beg + _size = " << (int)(_beg + _size) << endl;*/
-			#endif
+			/*cout << "iterator++ :          ptr = " << (int)ptr << endl;
+			cout << "iterator++ :         *ptr = " << *ptr << endl;
+			cout << "iterator++ :        _size = " << _size << endl;
+			cout << "iterator++ :         _beg = " << (int)_beg << endl;
+			cout << "iterator++ :         *_beg = " << *_beg << endl;
+			cout << "iterator++ : _beg + _size = " << (int)(_beg + _size) << endl;*/
 
 			++ptr;
-			if (ptr >= _beg + _size + 1) {
-				ptr -= _size + 1;
+			if (ptr >= _beg + _size) {
+				ptr -= _size;
 			}
 			return tmp;
 		}
 
 	}; // fine iterator
 
-	   /**
-	   * Richiesta iterator
-	   * @return un iteratore in lettura/scrittura all'inizio della sequenza dati
-	   */
+	/**
+	 * Richiesta iterator
+	 * @return un iteratore in lettura/scrittura all'inizio della sequenza dati
+	 */
 	iterator begin() {
-		#ifndef NDEBUG
-			cout << "# richiesta iteratore begin()" << endl;
-		#endif
-		return iterator(ptr + head, size, ptr);
+		cout << "begin()" << endl;
+		return iterator(ptr + head, (int)size, ptr);
 	}
 
 	/**
-	* Richiesta iterator
-	* @return un iteratore in lettura/scrittura alla fine della sequenza dati
-	*/
+	 * Richiesta iterator
+	 * @return un iteratore in lettura/scrittura alla fine della sequenza dati
+	 */
 	iterator end() {
-		#ifndef NDEBUG
-		cout << "# richiesta iteratore end()" << endl;
-		#endif
-		return iterator(ptr + tail);
+		cout << "end()" << endl;
+		return iterator(ptr + tail - 1);
 	}
 
 
 	/*
-	* TEMP METHODS
-	* Eliminarli in release!
-	*/
+	 * TEMP METHODS
+	 * Eliminarli in release!
+	 */
 	size_type get_head() {
 		return head;
 	}
@@ -416,19 +408,13 @@ void debug_print_buffer_header(cbuffer<T> &cb) {
 }
 
 template <typename T>
-void debug_print_memo_buffer(cbuffer<T> &cb) {
+void debug_print_buffer(cbuffer<T> &cb) {
 	//iteratori
 	debug_print_buffer_header(cb);
-	cout << "Print ptr[] (Rappresentazione Memoria)" << endl;
-	cout << "--------------------------------------" << endl;
-	for (int i = 0; i < cb.get_pending_items()+1; i++) {
-		if (i == cb.get_tail())
-			cout << "    | [" << i << "] | 'NULL(" << cb.get_ptr()[i] << ")' |" << endl;
-		else
-			cout << "    | [" << i << "] | '" << cb.get_ptr()[i] << "' |" << endl;
+	cout << "Print ptr[]" << endl;
+	for (int i = 0; i < cb.get_pending_items(); i++) {
+		cout << "    - [" << i << "] : " << cb.get_ptr()[i] << endl;
 	}
-	cout << "--------------------------------------" << endl;
-
 }
 
 #endif
