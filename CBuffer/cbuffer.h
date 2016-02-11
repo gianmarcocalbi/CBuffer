@@ -1,30 +1,33 @@
+/**
+* \class cbuffer
+*
+* \brief Classe Buffer Circolare Progetto C++
+*
+* Il progetto richiede la realizzazione di una classe cbuffer generica che
+* implementa un buffer circolare di elementi di tipo T.
+* Il buffer ha una capacità fissa, decisa a costruzione. L'inserimento accoda gli
+* elementi finché il buffer non è pieno. Una volta riempito, i nuovi dati vengono
+* scritti partendo dall'inizio del buffer, sovrascrivendo i vecchi.
+*
+* \note Progetto d'esame.
+*
+* \author (last to touch it) $Author: Gianmarco Calbi 781951 $
+*
+* \version $Revision: 1.0 $
+*
+* \date $Date: 2016/02/08 23:00:00 $
+*
+*/
+
 #ifndef CBUFFER_H
 #define CBUFFER_H
 #include <iostream>
-#include <assert.h> //definire NDEBUG in release
 #include <algorithm>
 #include <string>
 #include <stdexcept>
+#include <assert.h>
 using namespace std;
 
-/*
-TODO STUFFS
-[X] - aggiungere commenti developping
-[X] - Rimuovere assert on release.
-[X] - Supporto ad un cbuffer costante (const-correctness)
-[X] - Memory Check DrMemory
-[X] - Mettere get_ptr() come const! : const *T
-[X] - Aggiungere i commenti inline
-[X] - Doxygen review finale
-
-COMPLETED
-
-[V] - iteratori end() begin()
-[V] - Costruttore Secondario.
-[V] - Aggiungere e implementare Eccezioni.
-
-old - sostituire size+1 con "real_size" -> ovvero la vera dimensione del buffer in memoria.
-*/
 
 template <typename T>
 class cbuffer {
@@ -56,7 +59,7 @@ public:
 
 	/**
 	* Costruttore Primario.
-	* @param size_type sz dimensione in capacità elementi buffer.
+	* @param sz dimensione in capacità elementi buffer.
 	*/
 	explicit cbuffer(size_type sz) : ptr(0), size(sz), items_amount(0), head(0), tail(0), pending_items(0) {
 		#ifndef NDEBUG
@@ -136,7 +139,6 @@ public:
 			std::swap(head, tmp.head);
 			std::swap(tail, tmp.tail);
 			std::swap(pending_items, tmp.pending_items);
-			//(!) fare una swap per ogni variabile che aggiungerò
 		}
 		return *this; // concatenazione assegnamenti
 	}
@@ -146,7 +148,7 @@ public:
 	* Operatore "=" templato.
 	* Operatore di assegnamento tra due cbuffer contenenti item di diverso tipo.
 	* cbuffer<T> = cbuffer<Q> con casting.
-	* @param const cbuffer &other.
+	* @param &other.
 	* @return cbuffer.
 	*/
 	template<typename Q>
@@ -156,15 +158,21 @@ public:
 		#endif // !NDEBUG
 		cbuffer<T> tmp(other.get_size());
 
-		for (size_type i = 0; i < other.get_size() + 1; ++i) {
-			tmp.ptr[i] = static_cast<T>(other.get_ptr()[i]);
+		try {
+			for (size_type i = 0; i < other.get_size() + 1; ++i) {
+				tmp.ptr[i] = static_cast<T>(other.get_ptr()[i]);
+			}
+			std::swap(ptr, tmp.ptr);
+			std::swap(size, tmp.size);
+			items_amount = other.get_items_amount();
+			head = other.get_head();
+			tail = other.get_tail();
+			pending_items = other.get_pending_items();
+		} catch (exception& e) {
+			cout << "ERRORE: static_cast fallito." << endl;
+			throw;
+			//e.what();
 		}
-		std::swap(ptr, tmp.ptr);
-		std::swap(size, tmp.size);
-		items_amount = other.get_items_amount();
-		head = other.get_head();
-		tail = other.get_tail();
-		pending_items = other.get_pending_items();
 		return *this; // concatenazione assegnamenti
 	}
 
@@ -239,7 +247,7 @@ public:
 	* Puntatore a ptr (solo lettura).
 	* @return T* ptr
 	*/
-	/*const*/ T * get_ptr() const {
+	const T * get_ptr() const {
 		return ptr;
 	}
 	
@@ -247,7 +255,7 @@ public:
 	/**
 	* Aggiunta nuovo elemento.
 	* Inserimento (in coda) di un nuovo elemento nel buffer circolare.
-	* @param T item elemento da aggiungere al buffer.
+	* @param item elemento da aggiungere al buffer.
 	*/
 	void add_item(T item) {
 		#ifndef NDEBUG
@@ -286,7 +294,7 @@ public:
 		/* Se c'è almeno un elemento nel buffer sposto la head di uno in avanti,
 		altrimenti non posso eliminare un elemento. */
 		if (pending_items > 0) {
-			ptr[head] = 0; //(!)Attenzione la memoria può esplodere... forse è questo che fa esplodere la memoria
+			ptr[head] = 0;
 			head = (head + 1) % (size + 1);
 			pending_items--;
 			return true;
@@ -329,14 +337,13 @@ public:
 		cout << "# cbuffer<T>::&operator[] (size_type index)" << endl;
 		#endif // !NDEBUG
 		if (index >= pending_items) {
-			throw out_of_range("ERRORE: i e' fuori dal range del buffer.");
+			throw out_of_range("ERRORE: 'i' e' fuori dal range del buffer.");
 		} else {
 			int tmp = (head + index) % (size + 1);
 			return ptr[tmp];
 		}
 	}
-
-	//(!)dopo alcuni test ho appurato che il confronto tra cbuffer templati diversamente non aveva alcun senso
+	
 
 	/**
 	* Operatore "==".
@@ -398,7 +405,7 @@ public:
 		* Costruttore privato.
 		* @param p Puntatore ai dati di cbuffer<T>.
 		*/
-		iterator(T* p) : ptr(p) {}
+		iterator(T* p) : ptr(p), cb_size(0), cb_begin(0) {}
 
 
 		/**
@@ -481,7 +488,6 @@ public:
 			return !(other == *this);
 		}
 
-		//confronto con const_iterator da confrontare
 
 		/**
 		* Operatore "==" iterator/const_iterator.
@@ -524,12 +530,10 @@ public:
 		iterator operator++(int) {
 			iterator tmp(ptr);
 			#ifndef NDEBUG
-			/*cout << "iterator++ :          ptr = " << (int)ptr << endl;
-			//cout << "iterator++ :         *ptr = " << *ptr << endl;
-			cout << "iterator++ :        _size = " << _size << endl;
-			cout << "iterator++ :         _beg = " << (int)_beg << endl;
-			//cout << "iterator++ :        *_beg = " << *_beg << endl;
-			cout << "iterator++ : _beg + _size = " << (int)(_beg + _size) << endl;*/
+			//cout << "iterator++ :                ptr = " << (int)ptr << endl;
+			//cout << "iterator++ :            cb_size = " << cb_size << endl;
+			//cout << "iterator++ :             cb_beg = " << (int)cb_begin << endl;
+			//cout << "iterator++ : cb_begin + cb_size = " << (int)(cb_begin + cb_size) << endl;
 			#endif
 
 			++ptr;
@@ -543,8 +547,8 @@ public:
 
 	class const_iterator {
 
-		friend class cbuffer<T>;	//Permette a iterator di accedere ai dati/metodi privati di cbuffer.
-		friend class iterator;		//Permette a iterator di accedere ai dati/metodi privati di const_iterator.
+		friend class cbuffer<T>;	//Permette a const_iterator di accedere ai dati/metodi privati di cbuffer.
+		friend class iterator;		//Permette a const_iterator di accedere ai dati/metodi privati di iterator.
 
 		const T *ptr;		///< Puntatore const ai dati di cbuffer<T>
 		size_type cb_size;	///< Size cbuffer.
@@ -555,7 +559,7 @@ public:
 		* Costruttore privato.
 		* @param p Puntatore ai dati di cbuffer<T>.
 		*/
-		const_iterator(const T* p) : ptr(p) {}
+		const_iterator(const T* p) : ptr(p), cb_size(0), cb_begin(0) {}
 
 		/**
 		* Costruttore privato.
@@ -686,10 +690,10 @@ public:
 
 	};
 
-	   /**
-	   * Richiesta iterator di inizio.
-	   * @return iterator Iteratore in lettura e scrittura all'elemento più vecchio del buffer circolare.
-	   */
+	/**
+	* Richiesta iterator di inizio.
+	* @return iterator Iteratore in lettura e scrittura all'elemento più vecchio del buffer circolare.
+	*/
 	iterator begin() {
 		#ifndef NDEBUG
 		cout << "# richiesta iteratore begin()" << endl;
@@ -764,46 +768,4 @@ void check(cbuffer<T> &cb, F p) {
 	cout << "# check(cbuffer<T> cb, F p) end" << endl;
 	#endif // !NDEBUG
 }
-
-
-/***********************************************
-************** DEBUG FUNCTIONS ****************
-***********************************************/
-template <typename T>
-void debug_print_buffer_header(cbuffer<T> &cb) {
-	//iteratori
-	cout << "Buffer Circolare CBuffer" << endl << "get_size() = " << cb.get_size() << endl;
-	cout << "get_pending_items() = " << cb.get_pending_items() << endl << "get_items_amount() = " << cb.get_items_amount() << endl;
-	cout << "head = " << cb.get_head() << endl << "tail = " << cb.get_tail() << endl;
-}
-
-template <typename T>
-void debug_print_memo_buffer(cbuffer<T> &cb) {
-	//iteratori
-	debug_print_buffer_header(cb);
-	cout << "Print ptr[] (Rappresentazione Memoria)" << endl;
-	cout << "--------------------------------------" << endl;
-	for (int i = 0; i < cb.get_size() + 1; i++) {
-		if (i == cb.get_tail())
-			cout << "    | [" << i << "] | 'NULL(" << cb.get_ptr()[i] << ")' |" << endl;
-		else
-			cout << "    | [" << i << "] | '" << cb.get_ptr()[i] << "' |" << endl;
-	}
-	cout << "--------------------------------------" << endl;
-
-}
-
-template <typename T>
-void debug_print_buffer(cbuffer<T> &cb) {
-	//iteratori
-	debug_print_buffer_header(cb);
-	cout << "Print cbuffer[]" << endl;
-	cout << "--------------------------------------" << endl;
-	for (int i = 0; i < cb.get_pending_items(); i++) {
-		cout << "    | [" << i << "] | '" << cb[i] << "' |" << endl;
-	}
-	cout << "--------------------------------------" << endl;
-
-}
-
 #endif
